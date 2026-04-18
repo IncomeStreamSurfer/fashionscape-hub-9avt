@@ -1,0 +1,98 @@
+---
+import Base from "../layouts/Base.astro";
+import Nav from "../components/Nav.astro";
+import Footer from "../components/Footer.astro";
+import { getSupabase } from "../lib/supabase";
+import { getUser } from "../lib/auth";
+
+const supa = getSupabase();
+const { user } = await getUser(Astro as any);
+
+const { data: achievements } = await supa
+  .from("achievements")
+  .select("*")
+  .order("tier", { ascending: true })
+  .order("requirement_value", { ascending: true });
+
+let unlockedSet = new Set<string>();
+if (user) {
+  const { data: ua } = await supa.from("user_achievements").select("achievement_id").eq("user_id", user.id);
+  unlockedSet = new Set((ua ?? []).map((r: any) => r.achievement_id));
+}
+
+const TIER_COLORS: Record<string, { border: string; bg: string; label: string }> = {
+  bronze:  { border: "#cd7f32", bg: "#cd7f3222", label: "Bronze" },
+  iron:    { border: "#9aa0a4", bg: "#9aa0a422", label: "Iron" },
+  steel:   { border: "#b0c4de", bg: "#b0c4de22", label: "Steel" },
+  mithril: { border: "#4a7a8c", bg: "#4a7a8c22", label: "Mithril" },
+  adamant: { border: "#3c8a6c", bg: "#3c8a6c22", label: "Adamant" },
+  rune:    { border: "#5f9ea0", bg: "#5f9ea044", label: "Rune" },
+  dragon:  { border: "#a83232", bg: "#a8323244", label: "Dragon" },
+};
+
+const byTier: Record<string, any[]> = {};
+for (const a of achievements || []) {
+  if (!byTier[a.tier]) byTier[a.tier] = [];
+  byTier[a.tier].push(a);
+}
+
+const order = ["bronze","iron","steel","mithril","adamant","rune","dragon"];
+---
+<Base title="Achievements — FashionScape Hub">
+  <Nav />
+  <main class="max-w-7xl mx-auto px-6 py-10">
+    <div class="text-center mb-10">
+      <div class="text-xs uppercase tracking-widest text-rune-gold/80 mb-2">🎖 Unlock them all</div>
+      <h1 class="font-display text-5xl md:text-6xl font-bold shimmer">Achievements</h1>
+      <p class="text-parchment/70 mt-3 max-w-2xl mx-auto">
+        Earn badges from Bronze to Dragon tier by uploading, getting voted, voting others, linking Discord, and winning weekly awards.
+      </p>
+      {user && (
+        <div class="inline-block mt-4 rune-border rounded-full px-4 py-2 text-sm">
+          <span class="text-rune-gold font-bold">{unlockedSet.size}</span>
+          <span class="text-parchment/60"> / </span>
+          <span class="text-parchment/80">{achievements?.length ?? 0}</span>
+          <span class="text-parchment/60 ml-2">unlocked</span>
+        </div>
+      )}
+    </div>
+
+    {order.filter((t) => byTier[t]).map((t) => {
+      const tc = TIER_COLORS[t];
+      return (
+        <section class="mb-10">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="px-3 py-1 rounded font-display font-bold" style={`background: ${tc.bg}; color: ${tc.border}; border: 1px solid ${tc.border};`}>{tc.label} Tier</div>
+            <div class="h-px flex-1" style={`background: ${tc.border}33;`}></div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {byTier[t].map((a: any) => {
+              const unlocked = unlockedSet.has(a.id);
+              return (
+                <div class={`rune-border rounded-lg p-4 flex gap-4 items-start ${unlocked ? '' : 'opacity-50'}`} style={unlocked ? `border-color: ${tc.border}; background: ${tc.bg};` : ''}>
+                  <div class="text-5xl leading-none">{a.icon}</div>
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2">
+                      <h3 class="font-display font-bold" style={unlocked ? `color: ${tc.border};` : ''}>{a.name}</h3>
+                      {unlocked && <span class="text-xs bg-rune-gold text-[#1b1209] px-1.5 py-0.5 rounded font-bold">✓</span>}
+                    </div>
+                    <p class="text-sm text-parchment/70 mt-1">{a.description}</p>
+                    <div class="text-xs text-rune-gold mt-2">+{a.points_reward} points</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      );
+    })}
+
+    {!user && (
+      <div class="rune-border rounded-xl p-8 text-center mt-10">
+        <p class="text-parchment/80 mb-4">Sign up to track your achievements and earn points!</p>
+        <a href="/signup" class="btn-gold px-6 py-3 rounded inline-block">Start earning →</a>
+      </div>
+    )}
+  </main>
+  <Footer />
+</Base>

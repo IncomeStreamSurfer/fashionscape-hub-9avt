@@ -1,0 +1,80 @@
+---
+import Base from "../layouts/Base.astro";
+import Nav from "../components/Nav.astro";
+import Footer from "../components/Footer.astro";
+import { getSupabase } from "../lib/supabase";
+
+const supa = getSupabase();
+const { data: top } = await supa
+  .from("profiles")
+  .select("id,username,rsn,discord_handle,avatar_url,total_points,outfits_posted")
+  .order("total_points", { ascending: false })
+  .limit(100);
+
+const MEDALS = ["🥇", "🥈", "🥉"];
+---
+<Base title="Leaderboard — FashionScape Hub">
+  <Nav />
+  <main class="max-w-5xl mx-auto px-6 py-10">
+    <div class="text-center mb-10">
+      <div class="text-xs uppercase tracking-widest text-rune-gold/80 mb-2">📜 The realm's elite</div>
+      <h1 class="font-display text-5xl md:text-6xl font-bold shimmer">Leaderboard</h1>
+      <p class="text-parchment/70 mt-3">Top 100 fashionscape adventurers by total points earned.</p>
+    </div>
+
+    {top && top.length > 0 ? (
+      <div class="rune-border rounded-xl overflow-hidden">
+        <table class="w-full">
+          <thead class="bg-rune-gold/10 text-xs uppercase tracking-widest text-rune-gold/80">
+            <tr>
+              <th class="px-4 py-3 text-left">Rank</th>
+              <th class="px-4 py-3 text-left">Adventurer</th>
+              <th class="px-4 py-3 text-right">Outfits</th>
+              <th class="px-4 py-3 text-right">Points</th>
+            </tr>
+          </thead>
+          <tbody>
+            {top.map((p: any, i: number) => (
+              <tr class={`border-t border-rune-gold/10 hover:bg-rune-gold/5 transition ${i < 3 ? 'bg-rune-gold/5' : ''}`}>
+                <td class="px-4 py-3 font-display font-bold">
+                  {i < 3 ? <span class="text-2xl">{MEDALS[i]}</span> : <span class="text-parchment/50">#{i + 1}</span>}
+                </td>
+                <td class="px-4 py-3">
+                  <a href={`/u/${p.username}`} class="flex items-center gap-3 hover:text-rune-gold">
+                    <div class="w-9 h-9 rounded-full rune-border flex items-center justify-center font-bold">{p.username?.[0]?.toUpperCase() ?? "?"}</div>
+                    <div>
+                      <div class="font-display font-semibold">@{p.username}</div>
+                      {p.rsn && <div class="text-xs text-parchment/50">RSN: {p.rsn}</div>}
+                    </div>
+                    {p.discord_handle && <span class="text-xs bg-[#5865f2]/30 border border-[#5865f2]/50 rounded px-1.5 py-0.5 ml-2">💬</span>}
+                  </a>
+                </td>
+                <td class="px-4 py-3 text-right text-parchment/80">{p.outfits_posted}</td>
+                <td class="px-4 py-3 text-right font-display font-bold text-rune-gold">{p.total_points}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    ) : (
+      <div class="rune-border rounded-xl p-10 text-center">
+        <div class="text-6xl mb-4">📜</div>
+        <h3 class="font-display text-2xl mb-2">The scroll is blank</h3>
+        <p class="text-parchment/60 mb-6">No adventurers have earned points yet. Be the first.</p>
+        <a href="/signup" class="btn-gold px-6 py-3 rounded inline-block">Join the realm →</a>
+      </div>
+    )}
+
+    <div class="mt-10 rune-border rounded-xl p-6 text-sm text-parchment/70 max-w-2xl mx-auto">
+      <h3 class="font-display font-bold text-lg mb-3 text-parchment">💰 How to earn points</h3>
+      <ul class="space-y-1.5">
+        <li>🔹 <strong>+1 point</strong> for each vote you receive on your outfits</li>
+        <li>🔹 <strong>+5 points</strong> when you upload with a Discord link</li>
+        <li>🔹 <strong>+15 points</strong> for linking your Discord handle</li>
+        <li>🔹 <strong>+10 to +1000</strong> for each achievement unlocked</li>
+        <li>🔹 <strong>+100 points</strong> for winning a weekly award</li>
+      </ul>
+    </div>
+  </main>
+  <Footer />
+</Base>

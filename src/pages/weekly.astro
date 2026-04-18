@@ -1,0 +1,142 @@
+---
+import Base from "../layouts/Base.astro";
+import Nav from "../components/Nav.astro";
+import Footer from "../components/Footer.astro";
+import OutfitCard from "../components/OutfitCard.astro";
+import { getSupabase, CATEGORIES, getCategory } from "../lib/supabase";
+
+const supa = getSupabase();
+
+const weekStart = new Date();
+weekStart.setUTCHours(0, 0, 0, 0);
+const day = weekStart.getUTCDay();
+weekStart.setUTCDate(weekStart.getUTCDate() - day);
+const weekStartStr = weekStart.toISOString().slice(0, 10);
+
+const weekEnd = new Date(weekStart);
+weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
+
+const { data: currentOutfits } = await supa
+  .from("outfits")
+  .select("id,title,image_url,category,vote_count,discord_url,profiles(username)")
+  .gte("week_of", weekStartStr)
+  .order("vote_count", { ascending: false })
+  .limit(50);
+
+const byCategory: Record<string, any[]> = {};
+for (const c of CATEGORIES) byCategory[c.id] = [];
+for (const o of currentOutfits || []) {
+  if (byCategory[o.category]) byCategory[o.category].push(o);
+}
+
+const { data: pastAwards } = await supa
+  .from("weekly_awards")
+  .select("*, outfits(id,title,image_url,category,vote_count,discord_url,profiles(username))")
+  .order("week_of", { ascending: false })
+  .limit(20);
+
+const fmt = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+---
+<Base title="Weekly Awards — FashionScape Hub">
+  <Nav />
+  <main class="max-w-7xl mx-auto px-6 py-10">
+    <div class="text-center mb-10">
+      <div class="text-xs uppercase tracking-widest text-rune-gold/80 mb-2">🏆 Every Sunday, glory is awarded</div>
+      <h1 class="font-display text-5xl md:text-6xl font-bold shimmer">Weekly Awards</h1>
+      <p class="text-parchment/70 mt-3 max-w-2xl mx-auto">
+        Each week, the most-upvoted outfit in every category wins a Weekly Winner badge, +100 points, and a permanent place in the Hall of Glory. Current week: <span class="text-rune-gold font-bold">{fmt(weekStart)} – {fmt(weekEnd)}</span>
+      </p>
+    </div>
+
+    <section class="mb-16">
+      <h2 class="font-display text-3xl font-bold mb-6 text-center">🔥 This Week's Leaders</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {CATEGORIES.map((c) => {
+          const leader = byCategory[c.id]?.[0];
+          return (
+            <div class="rune-border rounded-xl overflow-hidden">
+              <div class="flex items-center justify-between px-4 py-3 border-b border-rune-gold/20" style={`background: ${c.color}22;`}>
+                <div class="flex items-center gap-2 font-display font-semibold">
+                  <span class="text-xl">{c.icon}</span>
+                  <span style={`color: ${c.color};`}>{c.label} Champion</span>
+                </div>
+                <span class="text-xs text-parchment/50">{byCategory[c.id]?.length || 0} entries</span>
+              </div>
+              {leader ? (
+                <a href={`/outfit/${leader.id}`} class="block hover:bg-rune-gold/5 transition">
+                  <div class="relative h-52 bg-[#2b1a0f] overflow-hidden">
+                    <img src={leader.image_url} alt={leader.title} loading="lazy" class="w-full h-full object-cover" />
+                    <div class="absolute top-2 right-2 bg-rune-gold text-[#1b1209] font-bold text-sm px-2 py-0.5 rounded flex items-center gap-1">
+                      <span>⬆</span><span>{leader.vote_count}</span>
+                    </div>
+                  </div>
+                  <div class="p-3">
+                    <div class="font-display font-bold">{leader.title}</div>
+                    <div class="text-xs text-parchment/60">by @{leader.profiles?.username ?? 'unknown'}</div>
+                  </div>
+                </a>
+              ) : (
+                <div class="p-6 text-center text-parchment/50 text-sm">
+                  No entries yet — <a href={`/upload?category=${c.id}`} class="text-rune-gold hover:underline">be the first</a>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+
+    <section class="mb-16 rune-border rounded-xl p-6 md:p-10 text-center max-w-3xl mx-auto">
+      <h2 class="font-display text-3xl font-bold mb-6">🎖 How it works</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+        <div>
+          <div class="text-3xl mb-2">📤</div>
+          <h3 class="font-display font-semibold mb-1">1. Upload</h3>
+          <p class="text-sm text-parchment/70">Post your fashionscape in any category. Link your Discord for bonus points.</p>
+        </div>
+        <div>
+          <div class="text-3xl mb-2">🗳️</div>
+          <h3 class="font-display font-semibold mb-1">2. Get voted</h3>
+          <p class="text-sm text-parchment/70">Every upvote earns you a point. The community decides who rules the week.</p>
+        </div>
+        <div>
+          <div class="text-3xl mb-2">🏆</div>
+          <h3 class="font-display font-semibold mb-1">3. Win glory</h3>
+          <p class="text-sm text-parchment/70">Every Sunday, top-voted outfit in each category wins 100 points + Weekly Winner badge.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="font-display text-3xl font-bold mb-6 text-center">🏰 Hall of Glory</h2>
+      {pastAwards && pastAwards.length > 0 ? (
+        <div class="space-y-4">
+          {pastAwards.map((a: any) => {
+            const c = getCategory(a.category);
+            return (
+              <div class="rune-border rounded-lg p-4 flex items-center gap-4">
+                <div class="text-3xl">{c.icon}</div>
+                <div class="flex-1">
+                  <div class="font-display font-semibold" style={`color: ${c.color};`}>{a.award_name}</div>
+                  <div class="text-xs text-parchment/50">Week of {a.week_of}</div>
+                </div>
+                {a.outfits && (
+                  <a href={`/outfit/${a.outfits.id}`} class="flex items-center gap-3 hover:bg-rune-gold/5 rounded p-2 transition">
+                    <img src={a.outfits.image_url} class="w-14 h-14 object-cover rounded border border-rune-gold/30" />
+                    <div class="text-sm">
+                      <div class="font-semibold">{a.outfits.title}</div>
+                      <div class="text-parchment/60 text-xs">@{a.outfits.profiles?.username}</div>
+                    </div>
+                  </a>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p class="text-center text-parchment/50">No weekly awards granted yet. The first Hall of Glory entry could be yours.</p>
+      )}
+    </section>
+  </main>
+  <Footer />
+</Base>
