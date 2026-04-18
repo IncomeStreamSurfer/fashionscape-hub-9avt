@@ -1,19 +1,99 @@
 ---
 import Base from "../layouts/Base.astro";
+import Nav from "../components/Nav.astro";
+import Footer from "../components/Footer.astro";
+import OutfitCard from "../components/OutfitCard.astro";
+import { getSupabase, CATEGORIES } from "../lib/supabase";
+
+const supa = getSupabase();
+
+const { data: trendingOutfits } = await supa
+  .from("outfits")
+  .select("id,title,image_url,category,vote_count,discord_url,profiles(username)")
+  .order("vote_count", { ascending: false })
+  .limit(8);
+
+const { count: totalOutfits } = await supa.from("outfits").select("*", { count: "exact", head: true });
+const { count: totalMembers } = await supa.from("profiles").select("*", { count: "exact", head: true });
+const { count: totalVotes } = await supa.from("votes").select("*", { count: "exact", head: true });
 ---
-<Base title="FashionScape Hub — Building...">
-  <main class="min-h-screen flex items-center justify-center px-6">
-    <div class="text-center max-w-2xl">
-      <div class="inline-block text-6xl md:text-7xl font-display font-bold shimmer mb-6 pulse-build">
-        FashionScape Hub
+<Base>
+  <Nav />
+
+  <section class="relative overflow-hidden">
+    <div class="absolute inset-0 opacity-20 pointer-events-none" style="background: radial-gradient(ellipse at 30% 20%, #c89f2c 0%, transparent 60%), radial-gradient(ellipse at 70% 80%, #7d1a1a 0%, transparent 60%);"></div>
+    <div class="max-w-7xl mx-auto px-6 pt-16 md:pt-24 pb-20 md:pb-32 relative">
+      <div class="text-center max-w-4xl mx-auto">
+        <div class="inline-block mb-4 px-3 py-1 rune-border rounded-full text-xs text-rune-gold">
+          ⚔️ The Realm's Premier Fashionscape Arena
+        </div>
+        <h1 class="font-display text-5xl md:text-7xl lg:text-8xl font-bold leading-tight mb-6">
+          <span class="shimmer">Wear the drip.</span><br/>
+          <span class="text-parchment">Win the glory.</span>
+        </h1>
+        <p class="text-lg md:text-xl text-parchment/75 mb-10 max-w-2xl mx-auto">
+          Upload your fashionscape outfits, earn votes from the community, climb the leaderboard, and win weekly awards. Link your Discord for bonus points and unlock over 20 achievements from Bronze to Dragon tier.
+        </p>
+        <div class="flex flex-wrap gap-3 justify-center">
+          <a href="/signup" class="btn-gold px-6 py-3 rounded text-base font-bold">Start Your Scape →</a>
+          <a href="/outfits" class="rune-border px-6 py-3 rounded text-base font-bold hover:border-rune-gold transition">Browse the Gallery</a>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3 md:gap-8 mt-14 max-w-2xl mx-auto">
+          <div class="rune-border rounded-lg px-3 py-4 md:px-6 md:py-5">
+            <div class="font-display text-2xl md:text-4xl font-bold text-rune-gold">{totalOutfits ?? 0}</div>
+            <div class="text-xs md:text-sm text-parchment/60 mt-1">Outfits</div>
+          </div>
+          <div class="rune-border rounded-lg px-3 py-4 md:px-6 md:py-5">
+            <div class="font-display text-2xl md:text-4xl font-bold text-rune-gold">{totalMembers ?? 0}</div>
+            <div class="text-xs md:text-sm text-parchment/60 mt-1">Members</div>
+          </div>
+          <div class="rune-border rounded-lg px-3 py-4 md:px-6 md:py-5">
+            <div class="font-display text-2xl md:text-4xl font-bold text-rune-gold">{totalVotes ?? 0}</div>
+            <div class="text-xs md:text-sm text-parchment/60 mt-1">Votes Cast</div>
+          </div>
+        </div>
       </div>
-      <p class="text-xl md:text-2xl text-parchment/80 font-display mb-8">⚔️ Forging the realm's finest fashionscape showcase...</p>
-      <div class="flex gap-3 justify-center items-center">
-        <span class="inline-block w-3 h-3 rounded-full bg-rune-gold animate-bounce" style="animation-delay:0s"></span>
-        <span class="inline-block w-3 h-3 rounded-full bg-rune-gold animate-bounce" style="animation-delay:0.15s"></span>
-        <span class="inline-block w-3 h-3 rounded-full bg-rune-gold animate-bounce" style="animation-delay:0.3s"></span>
-      </div>
-      <p class="mt-10 text-parchment/50 text-sm">Summoning outfits, achievements, and weekly awards...</p>
     </div>
-  </main>
+  </section>
+
+  <section class="max-w-7xl mx-auto px-6 py-12 md:py-16">
+    <div class="flex items-end justify-between mb-6 md:mb-8">
+      <div>
+        <div class="text-xs uppercase tracking-widest text-rune-gold/80 mb-1">🔥 Hottest drip right now</div>
+        <h2 class="font-display text-3xl md:text-4xl font-bold">Trending Outfits</h2>
+      </div>
+      <a href="/outfits?sort=top" class="text-sm text-rune-gold hover:text-parchment transition whitespace-nowrap">View all →</a>
+    </div>
+
+    {trendingOutfits && trendingOutfits.length > 0 ? (
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+        {trendingOutfits.map((o: any) => <OutfitCard outfit={o} />)}
+      </div>
+    ) : (
+      <div class="rune-border rounded-xl p-10 text-center">
+        <div class="text-6xl mb-4">🧙‍♂️</div>
+        <h3 class="font-display text-2xl mb-2">The gallery awaits its first hero</h3>
+        <p class="text-parchment/60 mb-6 max-w-md mx-auto">Be the first to upload your fashionscape and claim the Bronze Trailblazer achievement.</p>
+        <a href="/upload" class="btn-gold px-6 py-3 rounded inline-block">Upload the first outfit →</a>
+      </div>
+    )}
+  </section>
+
+  <section class="max-w-7xl mx-auto px-6 py-12 md:py-16">
+    <div class="mb-8 text-center">
+      <div class="text-xs uppercase tracking-widest text-rune-gold/80 mb-1">🗡️ Choose your path</div>
+      <h2 class="font-display text-3xl md:text-4xl font-bold">Browse by Category</h2>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+      {CATEGORIES.map((c) => (
+        <a href={`/outfits?category=${c.id}`} class="rune-border rounded-lg p-4 text-center hover:border-rune-gold hover:scale-[1.03] transition" style={`border-color: ${c.color}66;`}>
+          <div class="text-3xl mb-2">{c.icon}</div>
+          <div class="font-display font-semibold" style={`color: ${c.color};`}>{c.label}</div>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <Footer />
 </Base>

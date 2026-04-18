@@ -1,0 +1,47 @@
+---
+import { getCategory } from "../lib/supabase";
+interface Props {
+  outfit: {
+    id: string;
+    title: string;
+    image_url: string;
+    category: string;
+    vote_count: number;
+    discord_url?: string | null;
+    profiles?: { username: string; total_points?: number } | null;
+  };
+  size?: "sm" | "md" | "lg";
+}
+const { outfit, size = "md" } = Astro.props;
+const cat = getCategory(outfit.category);
+const h = size === "lg" ? "h-96" : size === "sm" ? "h-48" : "h-72";
+---
+<a href={`/outfit/${outfit.id}`} class="group block rune-border rounded-lg overflow-hidden hover:border-rune-gold transition-all hover:scale-[1.015]">
+  <div class={`relative overflow-hidden bg-[#2b1a0f] ${h}`}>
+    <img
+      src={outfit.image_url}
+      alt={outfit.title}
+      loading="lazy"
+      class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+    />
+    <div class="absolute top-2 left-2 px-2 py-0.5 rounded text-xs font-bold flex items-center gap-1"
+         style={`background: ${cat.color}; color: #1b1209;`}>
+      <span>{cat.icon}</span>
+      <span>{cat.label}</span>
+    </div>
+    <div class="absolute top-2 right-2 bg-[#1b1209]/90 border border-rune-gold/50 rounded px-2 py-0.5 text-xs font-bold text-rune-gold flex items-center gap-1">
+      <span>⬆</span><span>{outfit.vote_count}</span>
+    </div>
+    {outfit.discord_url && (
+      <div class="absolute bottom-2 right-2 bg-[#5865f2] text-white text-xs px-2 py-0.5 rounded flex items-center gap-1">
+        <span>💬</span><span class="hidden sm:inline">Discord</span>
+      </div>
+    )}
+  </div>
+  <div class="p-3">
+    <h3 class="font-display font-semibold text-parchment line-clamp-1 group-hover:text-rune-gold transition">{outfit.title}</h3>
+    {outfit.profiles && (
+      <p class="text-xs text-parchment/60 mt-0.5">by @{outfit.profiles.username}</p>
+    )}
+  </div>
+</a>
