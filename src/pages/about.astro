@@ -1,0 +1,33 @@
+---
+import Base from "../layouts/Base.astro";
+import Nav from "../components/Nav.astro";
+import Footer from "../components/Footer.astro";
+---
+<Base title="About — FashionScape Hub">
+  <Nav />
+  <main class="max-w-3xl mx-auto px-6 py-16">
+    <div class="text-center mb-10">
+      <div class="text-5xl mb-3">📜</div>
+      <h1 class="font-display text-5xl font-bold shimmer">About the Hub</h1>
+    </div>
+
+    <div class="rune-border rounded-xl p-8 space-y-6 text-parchment/85">
+      <p class="text-xl font-display text-center">Where fashionscape legends are forged.</p>
+      <p>FashionScape Hub is a community-driven showcase for RuneScape outfit enthusiasts. Upload your best drip, vote for the community's finest, and climb the leaderboard.</p>
+      <h2 class="font-display text-2xl font-bold text-rune-gold pt-4">How it works</h2>
+      <ol class="list-decimal list-inside space-y-2">
+        <li><strong>Join the realm</strong> — create a free account in seconds.</li>
+        <li><strong>Upload outfits</strong> — categorize them as Tank, Mage, Melee, Ranged, Skiller, PvP, Boss, Pet, Cosplay, or General.</li>
+        <li><strong>Earn votes</strong> — every upvote is +1 point.</li>
+        <li><strong>Link your Discord</strong> — +5 points per outfit with a Discord invite, +15 for linking your handle to your profile.</li>
+        <li><strong>Unlock achievements</strong> —  20+ badges across 7 tiers from Bronze to Dragon.</li>
+        <li><strong>Win weekly awards</strong> — every Sunday, the top voted outfit in each category wins +100 points and a permanent Hall of Glory entry.</li>
+      </ol>
+      <h2 class="font-display text-2xl font-bold text-rune-gold pt-4">Why Discord?</h2>
+      <p>Clans, PvMers, skillers, fashionscape enthusiasts — Discord is where the community lives. Linking your server to your outfits helps grow your community and earns you bonus points. Win-win.</p>
+      <h2 class="font-display text-2xl font-bold text-rune-gold pt-4">Is this affiliated with Jagex?</h2>
+      <p>Nope. FashionScape Hub is a fan-made tribute to the culture around fashionscape. RuneScape is a trademark of Jagex Ltd. All outfit images belong to their respective uploaders.</p>
+    </div>
+  </main>
+  <Footer />
+</Base>

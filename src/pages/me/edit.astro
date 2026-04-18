@@ -1,0 +1,41 @@
+---
+import Base from "../../layouts/Base.astro";
+import Nav from "../../components/Nav.astro";
+import Footer from "../../components/Footer.astro";
+import { getUser } from "../../lib/auth";
+import { getSupabase } from "../../lib/supabase";
+
+const { user } = await getUser(Astro as any);
+if (!user) return Astro.redirect("/login");
+
+const supa = getSupabase();
+const { data: profile } = await supa.from("profiles").select("*").eq("id", user.id).maybeSingle();
+const error = Astro.url.searchParams.get("error");
+const success = Astro.url.searchParams.get("success");
+---
+<Base title="Edit profile — FashionScape Hub">
+  <Nav />
+  <main class="max-w-md mx-auto px-6 py-10">
+    <h1 class="font-display text-4xl font-bold mb-6 text-center">Edit profile</h1>
+    {error && <div class="rune-border rounded p-3 mb-4 text-blood bg-blood/10 text-sm">{error}</div>}
+    {success && <div class="rune-border rounded p-3 mb-4 border-rune-gold text-rune-gold bg-rune-gold/10 text-sm text-center">✓ Saved</div>}
+
+    <form method="POST" action="/api/profile" class="rune-border rounded-xl p-6 space-y-4">
+      <div>
+        <label class="block text-xs uppercase tracking-widest text-rune-gold/80 mb-1">RSN (RuneScape Name)</label>
+        <input name="rsn" maxlength="12" value={profile?.rsn ?? ""} class="w-full bg-[#1b1209] border border-rune-gold/40 rounded px-3 py-2 focus:border-rune-gold outline-none" />
+      </div>
+      <div>
+        <label class="block text-xs uppercase tracking-widest text-rune-gold/80 mb-1">Discord handle (+15 pts)</label>
+        <input name="discord_handle" maxlength="60" value={profile?.discord_handle ?? ""} class="w-full bg-[#1b1209] border border-rune-gold/40 rounded px-3 py-2 focus:border-rune-gold outline-none" placeholder="zezima#0001" />
+      </div>
+      <div>
+        <label class="block text-xs uppercase tracking-widest text-rune-gold/80 mb-1">Bio</label>
+        <textarea name="bio" rows="3" maxlength="200" class="w-full bg-[#1b1209] border border-rune-gold/40 rounded px-3 py-2 focus:border-rune-gold outline-none">{profile?.bio ?? ""}</textarea>
+      </div>
+      <button type="submit" class="btn-gold w-full py-3 rounded font-bold">Save</button>
+      <a href="/me" class="block text-center text-sm text-parchment/60 hover:text-rune-gold">← Back to profile</a>
+    </form>
+  </main>
+  <Footer />
+</Base>

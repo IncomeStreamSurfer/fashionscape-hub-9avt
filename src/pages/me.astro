@@ -1,0 +1,126 @@
+---
+import Base from "../layouts/Base.astro";
+import Nav from "../components/Nav.astro";
+import Footer from "../components/Footer.astro";
+import OutfitCard from "../components/OutfitCard.astro";
+import { getSupabase } from "../lib/supabase";
+import { getUser } from "../lib/auth";
+import { checkAchievements } from "../lib/achievements";
+
+const { user, session } = await getUser(Astro as any);
+if (!user) return Astro.redirect("/login");
+
+let newlyUnlocked: any[] = [];
+if (session?.access_token) {
+  try { newlyUnlocked = await checkAchievements(user.id, session.access_token); } catch (_) {}
+}
+
+const supa = getSupabase();
+const { data: profile } = await supa.from("profiles").select("*").eq("id", user.id).maybeSingle();
+const { data: outfits } = await supa.from("outfits").select("id,title,image_url,category,vote_count,discord_url").eq("user_id", user.id).order("created_at", { ascending: false });
+const { data: unlocked } = await supa.from("user_achievements").select("*,achievements(*)").eq("user_id", user.id).order("unlocked_at", { ascending: false });
+
+const welcome = Astro.url.searchParams.get("welcome") === "1";
+---
+<Base title={`@${profile?.username ?? "My Scape"} — FashionScape Hub`}>
+  <Nav />
+  <main class="max-w-6xl mx-auto px-6 py-10">
+    {welcome && (
+      <div class="rune-border border-rune-gold rounded-lg p-5 mb-6 text-center bg-rune-gold/10">
+        <div class="font-display text-2xl text-rune-gold">⚔️ Welcome to the realm, @{profile?.username}!</div>
+        <div class="text-sm text-parchment/70 mt-1">Upload your first outfit to unlock the First Steps achievement.</div>
+      </div>
+    )}
+
+    {newlyUnlocked.length > 0 && (
+      <div class="rune-border border-rune-gold rounded-lg p-5 mb-6 bg-rune-gold/10">
+        <div class="font-display text-xl text-rune-gold mb-2">🎖 Achievement{newlyUnlocked.length > 1 ? 's' : ''} unlocked!</div>
+        <div class="flex flex-wrap gap-3">
+          {newlyUnlocked.map((a: any) => (
+            <div class="flex items-center gap-2 bg-[#1b1209] rounded px-3 py-2 border border-rune-gold/40">
+              <span class="text-2xl">{a.icon}</span>
+              <div>
+                <div class="font-bold">{a.name}</div>
+                <div class="text-xs text-rune-gold">+{a.points} pts</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+
+    <div class="rune-border rounded-xl p-6 mb-8 flex flex-col md:flex-row gap-6 items-start md:items-center">
+      <div class="w-20 h-20 rounded-full rune-border flex items-center justify-center font-display font-bold text-3xl">
+        {profile?.username?.[0]?.toUpperCase() ?? "?"}
+      </div>
+      <div class="flex-1">
+        <h1 class="font-display text-3xl font-bold">@{profile?.username}</h1>
+        {profile?.rsn && <div class="text-parchment/70">RSN: {profile.rsn}</div>}
+        {profile?.discord_handle && <div class="text-[#5865f2] text-sm">💬 {profile.discord_handle}</div>}
+        {profile?.bio && <p class="text-parchment/70 mt-2">{profile.bio}</p>}
+      </div>
+      <div class="flex gap-3 flex-wrap">
+        <a href="/upload" class="btn-gold px-4 py-2 rounded">+ Upload</a>
+        <a href="/me/edit" class="rune-border px-4 py-2 rounded hover:border-rune-gold transition">Edit profile</a>
+        <a href="/api/logout" class="rune-border px-4 py-2 rounded hover:border-blood transition text-sm">Log out</a>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+      <div class="rune-border rounded-lg p-4 text-center">
+        <div class="text-3xl font-display font-bold text-rune-gold">{profile?.total_points ?? 0}</div>
+        <div class="text-xs uppercase tracking-widest text-parchment/60 mt-1">Points</div>
+      </div>
+      <div class="rune-border rounded-lg p-4 text-center">
+        <div class="text-3xl font-display font-bold text-rune-gold">{profile?.outfits_posted ?? 0}</div>
+        <div class="text-xs uppercase tracking-widest text-parchment/60 mt-1">Outfits</div>
+      </div>
+      <div class="rune-border rounded-lg p-4 text-center">
+        <div class="text-3xl font-display font-bold text-rune-gold">{unlocked?.length ?? 0}</div>
+        <div class="text-xs uppercase tracking-widest text-parchment/60 mt-1">Achievements</div>
+      </div>
+      <div class="rune-border rounded-lg p-4 text-center">
+        <div class="text-3xl font-display font-bold text-rune-gold">{outfits?.reduce((s: number, o: any) => s + (o.vote_count ?? 0), 0) ?? 0}</div>
+        <div class="text-xs uppercase tracking-widest text-parchment/60 mt-1">Total votes</div>
+      </div>
+    </div>
+
+    <section class="mb-12">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-display text-2xl font-bold">🎖 Your Achievements</h2>
+        <a href="/achievements" class="text-sm text-rune-gold hover:text-parchment">View all →</a>
+      </div>
+      {unlocked && unlocked.length > 0 ? (
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {unlocked.slice(0, 8).map((u: any) => (
+            <div class="rune-border rounded-lg p-3 text-center border-rune-gold/60">
+              <div class="text-3xl mb-1">{u.achievements.icon}</div>
+              <div class="font-display text-sm font-bold">{u.achievements.name}</div>
+              <div class="text-xs text-rune-gold">+{u.achievements.points_reward}</div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p class="text-parchment/60 text-sm">No achievements unlocked yet. Upload your first outfit to get started!</p>
+      )}
+    </section>
+
+    <section>
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-display text-2xl font-bold">Your Outfits</h2>
+        <a href="/upload" class="btn-gold px-4 py-2 rounded text-sm">+ Upload new</a>
+      </div>
+      {outfits && outfits.length > 0 ? (
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {outfits.map((o: any) => <OutfitCard outfit={{...o, profiles: profile}} />)}
+        </div>
+      ) : (
+        <div class="rune-border rounded-xl p-8 text-center">
+          <p class="text-parchment/60 mb-4">You haven't uploaded any outfits yet.</p>
+          <a href="/upload" class="btn-gold px-6 py-3 rounded inline-block">Upload your first outfit →</a>
+        </div>
+      )}
+    </section>
+  </main>
+  <Footer />
+</Base>

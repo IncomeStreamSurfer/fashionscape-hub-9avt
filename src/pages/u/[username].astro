@@ -1,0 +1,78 @@
+---
+import Base from "../../layouts/Base.astro";
+import Nav from "../../components/Nav.astro";
+import Footer from "../../components/Footer.astro";
+import OutfitCard from "../../components/OutfitCard.astro";
+import { getSupabase } from "../../lib/supabase";
+
+const { username } = Astro.params;
+if (!username) return Astro.redirect("/leaderboard");
+
+const supa = getSupabase();
+const { data: profile } = await supa.from("profiles").select("*").eq("username", username).maybeSingle();
+if (!profile) return Astro.redirect("/leaderboard");
+
+const { data: outfits } = await supa.from("outfits").select("id,title,image_url,category,vote_count,discord_url").eq("user_id", profile.id).order("created_at", { ascending: false });
+const { data: unlocked } = await supa.from("user_achievements").select("*,achievements(*)").eq("user_id", profile.id).order("unlocked_at", { ascending: false });
+
+const { data: ranked } = await supa.from("profiles").select("id,total_points").order("total_points", { ascending: false }).limit(1000);
+const rank = (ranked ?? []).findIndex((r: any) => r.id === profile.id) + 1;
+---
+<Base title={`@${profile.username} — FashionScape Hub`} description={profile.bio ?? `${profile.username}'s RuneScape fashionscape outfits and achievements`}>
+  <Nav />
+  <main class="max-w-6xl mx-auto px-6 py-10">
+    <div class="rune-border rounded-xl p-6 mb-8 flex flex-col md:flex-row gap-6 items-start md:items-center">
+      <div class="w-20 h-20 rounded-full rune-border flex items-center justify-center font-display font-bold text-3xl">
+        {profile.username[0].toUpperCase()}
+      </div>
+      <div class="flex-1">
+        <h1 class="font-display text-3xl font-bold">@{profile.username}</h1>
+        {profile.rsn && <div class="text-parchment/70">RSN: {profile.rsn}</div>}
+        {profile.discord_handle && <div class="text-[#5865f2] text-sm">💬 {profile.discord_handle}</div>}
+        {profile.bio && <p class="text-parchment/70 mt-2">{profile.bio}</p>}
+        {rank > 0 && <div class="mt-2 text-sm text-rune-gold">📜 Ranked #{rank} on the leaderboard</div>}
+      </div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-3 mb-10">
+      <div class="rune-border rounded-lg p-4 text-center">
+        <div class="text-3xl font-display font-bold text-rune-gold">{profile.total_points}</div>
+        <div class="text-xs uppercase tracking-widest text-parchment/60">Points</div>
+      </div>
+      <div class="rune-border rounded-lg p-4 text-center">
+        <div class="text-3xl font-display font-bold text-rune-gold">{profile.outfits_posted}</div>
+        <div class="text-xs uppercase tracking-widest text-parchment/60">Outfits</div>
+      </div>
+      <div class="rune-border rounded-lg p-4 text-center">
+        <div class="text-3xl font-display font-bold text-rune-gold">{unlocked?.length ?? 0}</div>
+        <div class="text-xs uppercase tracking-widest text-parchment/60">Achievements</div>
+      </div>
+    </div>
+
+    {unlocked && unlocked.length > 0 && (
+      <section class="mb-10">
+        <h2 class="font-display text-2xl font-bold mb-4">🎖 Achievements ({unlocked.length})</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          {unlocked.map((u: any) => (
+            <div class="rune-border rounded-lg p-3 text-center border-rune-gold/60" title={u.achievements.description}>
+              <div class="text-3xl mb-1">{u.achievements.icon}</div>
+              <div class="font-display text-xs font-bold">{u.achievements.name}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+    )}
+
+    <section>
+      <h2 class="font-display text-2xl font-bold mb-4">Outfits</h2>
+      {outfits && outfits.length > 0 ? (
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {outfits.map((o: any) => <OutfitCard outfit={{...o, profiles: profile}} />)}
+        </div>
+      ) : (
+        <p class="text-parchment/60 text-sm">No outfits posted yet.</p>
+      )}
+    </section>
+  </main>
+  <Footer />
+</Base>

@@ -1,0 +1,140 @@
+---
+import Base from "../../layouts/Base.astro";
+import Nav from "../../components/Nav.astro";
+import Footer from "../../components/Footer.astro";
+import { getSupabase, getCategory } from "../../lib/supabase";
+import { getUser } from "../../lib/auth";
+
+const { id } = Astro.params;
+if (!id) return Astro.redirect("/outfits");
+
+const supa = getSupabase();
+const { user } = await getUser(Astro as any);
+
+const { data: outfit } = await supa
+  .from("outfits")
+  .select("*, profiles(id,username,rsn,discord_handle,total_points,outfits_posted)")
+  .eq("id", id)
+  .maybeSingle();
+
+if (!outfit) return Astro.redirect("/outfits");
+
+const cat = getCategory(outfit.category);
+
+let userVoted = false;
+if (user) {
+  const { data: myVote } = await supa
+    .from("votes")
+    .select("id")
+    .eq("outfit_id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  userVoted = !!myVote;
+}
+
+const isOwner = user && user.id === outfit.user_id;
+const posted = Astro.url.searchParams.get("posted") === "1";
+
+const { data: related } = await supa
+  .from("outfits")
+  .select("id,title,image_url,category,vote_count")
+  .eq("category", outfit.category)
+  .neq("id", id)
+  .order("vote_count", { ascending: false })
+  .limit(4);
+---
+<Base title={`${outfit.title} — FashionScape Hub`} description={outfit.description ?? `${cat.label} fashionscape by @${outfit.profiles?.username}`}>
+  <Nav />
+  <main class="max-w-6xl mx-auto px-6 py-10">
+    {posted && (
+      <div class="rune-border rounded-lg p-4 mb-6 text-center bg-rune-gold/10 border-rune-gold">
+        <div class="font-display text-lg text-rune-gold">🎉 Outfit posted to the realm!</div>
+        <div class="text-sm text-parchment/70">Share this page and rack up votes.</div>
+      </div>
+    )}
+
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+      <div class="lg:col-span-3">
+        <div class="rune-border rounded-xl overflow-hidden bg-[#2b1a0f] relative">
+          <img src={outfit.image_url} alt={outfit.title} class="w-full object-contain max-h-[75vh]" />
+          <div class="absolute top-3 left-3 px-3 py-1 rounded font-display font-bold flex items-center gap-2" style={`background: ${cat.color}; color: #1b1209;`}>
+            <span>{cat.icon}</span><span>{cat.label}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="lg:col-span-2 space-y-5">
+        <div>
+          <h1 class="font-display text-3xl md:text-4xl font-bold">{outfit.title}</h1>
+          {outfit.description && <p class="text-parchment/75 mt-3">{outfit.description}</p>}
+        </div>
+
+        <div class="rune-border rounded-xl p-5 text-center">
+          <div class="text-5xl font-display font-bold text-rune-gold">{outfit.vote_count}</div>
+          <div class="text-xs uppercase tracking-widest text-parchment/60 mt-1">upvotes</div>
+          {user ? (
+            isOwner ? (
+              <div class="mt-4 text-sm text-parchment/60">This is your outfit</div>
+            ) : (
+              <form method="POST" action={`/api/vote/${outfit.id}`} class="mt-4">
+                <button type="submit" class={`w-full py-3 rounded font-bold transition ${userVoted ? 'bg-[#1b1209] border border-rune-gold text-rune-gold' : 'btn-gold'}`}>
+                  {userVoted ? '✓ Voted (click to remove)' : '⬆ Upvote this drip'}
+                </button>
+              </form>
+            )
+          ) : (
+            <a href="/login" class="mt-4 block btn-gold py-3 rounded font-bold">Log in to vote</a>
+          )}
+        </div>
+
+        <a href={`/u/${outfit.profiles?.username}`} class="rune-border rounded-xl p-4 flex items-center gap-3 hover:border-rune-gold transition">
+          <div class="w-12 h-12 rounded-full rune-border flex items-center justify-center font-display font-bold text-lg">{outfit.profiles?.username?.[0]?.toUpperCase() ?? "?"}</div>
+          <div class="flex-1">
+            <div class="font-display font-bold">@{outfit.profiles?.username}</div>
+            <div class="text-xs text-parchment/60">{outfit.profiles?.outfits_posted} outfits · {outfit.profiles?.total_points} pts</div>
+          </div>
+          <span class="text-rune-gold">→</span>
+        </a>
+
+        {outfit.discord_url && (
+          <a href={outfit.discord_url} target="_blank" rel="noopener" class="block bg-[#5865f2] hover:brightness-110 transition text-white rounded-xl p-4 text-center font-bold">
+            💬 Join @{outfit.profiles?.username}'s Discord
+          </a>
+        )}
+
+        {outfit.items && outfit.items.length > 0 && (
+          <div class="rune-border rounded-xl p-4">
+            <div class="text-xs uppercase tracking-widest text-rune-gold/80 mb-2">🎒 Items</div>
+            <div class="flex flex-wrap gap-2">
+              {outfit.items.map((it: string) => (
+                <span class="text-xs bg-[#1b1209] border border-rune-gold/30 rounded px-2 py-1">{it}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div class="text-xs text-parchment/50">
+          Posted {new Date(outfit.created_at).toLocaleDateString()} · Week of {outfit.week_of}
+        </div>
+      </div>
+    </div>
+
+    {related && related.length > 0 && (
+      <section class="mt-16">
+        <h2 class="font-display text-2xl font-bold mb-4">More {cat.label} drip</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {related.map((r: any) => (
+            <a href={`/outfit/${r.id}`} class="group rune-border rounded-lg overflow-hidden hover:border-rune-gold transition">
+              <div class="relative h-48 bg-[#2b1a0f] overflow-hidden">
+                <img src={r.image_url} alt={r.title} loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                <div class="absolute top-2 right-2 bg-[#1b1209]/90 border border-rune-gold/50 rounded px-2 py-0.5 text-xs text-rune-gold">⬆ {r.vote_count}</div>
+              </div>
+              <div class="p-2 text-sm font-semibold">{r.title}</div>
+            </a>
+          ))}
+        </div>
+      </section>
+    )}
+  </main>
+  <Footer />
+</Base>
